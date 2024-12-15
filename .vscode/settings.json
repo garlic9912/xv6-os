@@ -35,6 +35,8 @@
         "streambuf": "c",
         "system_error": "c",
         "tuple": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "fs.h": "c",
+        "param.h": "c"
     }
 }
