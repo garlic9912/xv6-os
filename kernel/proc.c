@@ -277,6 +277,10 @@ fork(void)
 
   np->parent = p;
 
+  // use for syscall trace
+  np->mask = p->mask;
+  np->if_trace = p->if_trace;
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
