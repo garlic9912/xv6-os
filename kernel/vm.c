@@ -5,6 +5,9 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h" 
+#include "proc.h"
+
 
 /*
  * the kernel's page table.
@@ -132,7 +135,7 @@ kvmpa(uint64 va)
   pte_t *pte;
   uint64 pa;
   
-  pte = walk(kernel_pagetable, va, 0);
+  pte = walk(myproc()->kpagetable, va, 0);
   if(pte == 0)
     panic("kvmpa");
   if((*pte & PTE_V) == 0)
@@ -464,4 +467,35 @@ void _vmprint(pagetable_t pagetable_t, int depth) {
 void vmprint(pagetable_t pagetable) {
   printf("page table %p\n", pagetable);
   _vmprint(pagetable, 1);
+}
+
+
+pagetable_t proc_kvminit() {
+  // process's kernel pagetable init
+  pagetable_t pagetable = uvmcreate();
+  if(pagetable == 0)
+    return 0;
+  mappages(pagetable, UART0, PGSIZE, UART0, PTE_R | PTE_W);
+  mappages(pagetable, VIRTIO0, PGSIZE, VIRTIO0, PTE_R | PTE_W);
+  mappages(pagetable, CLINT, 0x10000, CLINT, PTE_R | PTE_W); 
+  mappages(pagetable, PLIC, 0x400000, PLIC, PTE_R | PTE_W);
+  mappages(pagetable, KERNBASE, (uint64)etext-KERNBASE, KERNBASE, PTE_R | PTE_X);
+  mappages(pagetable, (uint64)etext, PHYSTOP-(uint64)etext, (uint64)etext, PTE_R | PTE_W);
+  mappages(pagetable, TRAMPOLINE, PGSIZE, (uint64)trampoline, PTE_R | PTE_X);
+  return pagetable;
+}
+
+
+void proc_kptfree(pagetable_t pagetable) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+      uint64 child = PTE2PA(pte);
+      proc_kptfree((uint64 *)child);
+      pagetable[i] = 0;
+    } else if (pte & PTE_V) {
+      pagetable[i] = 0;
+    }
+  }
+  kfree((void *)pagetable);
 }
