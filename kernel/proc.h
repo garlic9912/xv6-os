@@ -108,4 +108,6 @@ struct proc {
   int ticks;
   uint64 handler;
   int last2now;
+  struct trapframe *tf_stored;
+  int is_alarming;
 };

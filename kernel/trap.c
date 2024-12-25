@@ -78,10 +78,14 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2) {
-    struct proc *p = myproc();
     if (p->ticks != 0) {
-      if (++p->last2now >= p->ticks) {
+      struct proc *p = myproc();
+      if (!p->is_alarming && ++p->last2now >= p->ticks) {
         p->last2now = 0;
+        p->is_alarming = 1;
+        // store the regs
+        p->tf_stored = (struct trapframe *)kalloc();
+        memmove(p->tf_stored, p->trapframe, PGSIZE);
         // run the handler()
         p->trapframe->epc = (uint64)p->handler;
       }
