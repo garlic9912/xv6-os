@@ -65,6 +65,17 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    // lazy allocation
+    uint64 fault_va = r_stval();
+    char *mem;
+    if (PGROUNDUP(p->trapframe->sp) - 1 < fault_va && fault_va < p->sz &&
+      (mem = kalloc()) != 0) {
+        memset(mem, 0, PGSIZE);
+        mappages(p->pagetable, PGROUNDDOWN(fault_va), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U);
+      } else {
+        p->killed = 1;
+      }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
